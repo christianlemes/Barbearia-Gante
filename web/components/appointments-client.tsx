@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
+  AlertTriangle,
   CalendarCheck2,
   CalendarDays,
   Clock3,
@@ -11,6 +12,7 @@ import {
   MapPin,
   Scissors,
   UserRound,
+  X,
 } from 'lucide-react';
 
 import { useFirebaseAuth } from '@/components/firebase-auth-provider';
@@ -40,11 +42,10 @@ export function AppointmentsClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [cancelingId, setCancelingId] = useState('');
+  const [pendingCancel, setPendingCancel] = useState<AppointmentRecord | null>(null);
 
   useEffect(() => {
     if (!user) return;
-    setLoading(true);
-    setError('');
     return subscribeCustomerAppointments(
       user.uid,
       (items) => {
@@ -64,19 +65,21 @@ export function AppointmentsClient() {
     [appointments, today],
   );
   const history = useMemo(
-    () => appointments.filter((item) => !['confirmed', 'pending'].includes(item.status) || item.appointment_date < today),
+    () => appointments
+      .filter((item) => !['confirmed', 'pending'].includes(item.status) || item.appointment_date < today)
+      .sort((a, b) => `${b.appointment_date}${b.appointment_time}`.localeCompare(`${a.appointment_date}${a.appointment_time}`)),
     [appointments, today],
   );
   const visible = tab === 'upcoming' ? upcoming : history;
 
   async function cancelAppointment(id: string) {
-    if (!window.confirm('Deseja realmente cancelar este horário? Ele será movido para o histórico.')) return;
     setCancelingId(id);
     setError('');
     try {
       if (!user) throw new Error('Entre novamente para cancelar este horário.');
       const appointment = await cancelBooking(id, user.uid);
       setAppointments((items) => items.map((item) => item.id === id ? appointment : item));
+      setPendingCancel(null);
       setTab('history');
     } catch (nextError) {
       setError(friendlyFirebaseError(nextError));
@@ -121,8 +124,8 @@ export function AppointmentsClient() {
                   {appointment.status === 'canceled' && appointment.cancel_reason && <p className="mt-5 rounded-xl bg-[#f2ebe7] px-4 py-3 text-sm text-[#78635d]">Motivo: {appointment.cancel_reason}</p>}
                   {appointment.status === 'confirmed' && (
                     <div className="mt-7 flex flex-wrap gap-3 border-t border-[#e7e1d8] pt-5">
-                      <Link href="/agendar" className="inline-flex h-10 items-center rounded-full border border-[#d2cabd] bg-white px-4 text-sm font-semibold hover:bg-[#f2eee7]">Reagendar</Link>
-                      <button disabled={cancelingId === appointment.id} onClick={() => void cancelAppointment(appointment.id)} className="h-10 rounded-full px-4 text-sm font-semibold text-[#8e493e] hover:bg-[#f4e7e3] disabled:opacity-50">{cancelingId === appointment.id ? 'Cancelando...' : 'Cancelar horário'}</button>
+                      <Link href={`/agendar?servico=${appointment.service_id}`} className="inline-flex h-10 items-center rounded-full border border-[#d2cabd] bg-white px-4 text-sm font-semibold hover:bg-[#f2eee7]">Agendar outro</Link>
+                      <button disabled={cancelingId === appointment.id} onClick={() => setPendingCancel(appointment)} className="h-10 rounded-full px-4 text-sm font-semibold text-[#8e493e] hover:bg-[#f4e7e3] disabled:opacity-50">{cancelingId === appointment.id ? 'Cancelando...' : 'Cancelar horário'}</button>
                     </div>
                   )}
                 </div>
@@ -137,6 +140,24 @@ export function AppointmentsClient() {
           <p className="mt-2 max-w-md text-sm leading-6 text-[#70746e]">{tab === 'upcoming' ? 'Escolha um serviço e encontre o melhor momento para cuidar do seu estilo.' : 'Agendamentos concluídos e cancelados aparecerão aqui.'}</p>
           {tab === 'upcoming' && <Link href="/agendar" className="mt-6 inline-flex h-11 items-center gap-2 rounded-full bg-[#174c35] px-5 text-sm font-bold text-white"><Scissors className="size-4" /> Agendar agora</Link>}
         </section>
+      )}
+
+      {pendingCancel && (
+        <dialog open aria-labelledby="cancel-title" className="fixed inset-0 z-[80] m-0 grid size-full max-h-none max-w-none place-items-center border-0 bg-[#08160f]/70 p-4 backdrop-blur-sm">
+          <section className="w-full max-w-md rounded-[28px] bg-[#fbf9f4] p-6 shadow-2xl sm:p-8">
+            <div className="flex items-start justify-between gap-5">
+              <span className="grid size-12 shrink-0 place-items-center rounded-full bg-[#f1e4df] text-[#8d493f]"><AlertTriangle className="size-5" /></span>
+              <button type="button" disabled={Boolean(cancelingId)} onClick={() => setPendingCancel(null)} aria-label="Fechar cancelamento" className="grid size-10 place-items-center rounded-full hover:bg-[#eee9df] disabled:opacity-50"><X className="size-5" /></button>
+            </div>
+            <p className="mt-6 text-xs font-bold uppercase tracking-[0.16em] text-[#92743b]">Confirme sua escolha</p>
+            <h2 id="cancel-title" className="mt-2 font-serif text-3xl">Cancelar este horário?</h2>
+            <p className="mt-3 text-sm leading-6 text-[#70746e]">{pendingCancel.service_name} com {pendingCancel.professional_name}, em {dateLabel(pendingCancel.appointment_date)} às {pendingCancel.appointment_time}. O registro continuará disponível no histórico.</p>
+            <div className="mt-7 grid gap-3 sm:grid-cols-2">
+              <button type="button" disabled={Boolean(cancelingId)} onClick={() => setPendingCancel(null)} className="h-12 rounded-full border border-[#d3ccbf] bg-white text-sm font-bold hover:bg-[#f2eee7] disabled:opacity-50">Manter horário</button>
+              <button type="button" disabled={Boolean(cancelingId)} onClick={() => void cancelAppointment(pendingCancel.id)} className="inline-flex h-12 items-center justify-center rounded-full bg-[#8d493f] text-sm font-bold text-white hover:bg-[#733a32] disabled:opacity-50">{cancelingId ? <><Loader2 className="mr-2 size-4 animate-spin" /> Cancelando</> : 'Sim, cancelar'}</button>
+            </div>
+          </section>
+        </dialog>
       )}
     </>
   );

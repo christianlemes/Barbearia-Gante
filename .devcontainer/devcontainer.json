@@ -1,0 +1,38 @@
+{
+  "name": "Gante Barbearia",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/java:1": {
+      "version": "21"
+    }
+  },
+  "forwardPorts": [3000, 4000, 8080, 9099],
+  "portsAttributes": {
+    "3000": {
+      "label": "Gante Barbearia",
+      "onAutoForward": "openPreview"
+    },
+    "4000": {
+      "label": "Firebase local",
+      "onAutoForward": "silent"
+    },
+    "8080": {
+      "label": "Firestore local",
+      "onAutoForward": "silent"
+    },
+    "9099": {
+      "label": "Firebase Auth local",
+      "onAutoForward": "silent"
+    }
+  },
+  "postCreateCommand": "cd web && npm ci",
+  "postStartCommand": "cd web && nohup npm run dev > /tmp/gante-dev.log 2>&1 &",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "bradlc.vscode-tailwindcss"
+      ]
+    }
+  }
+}

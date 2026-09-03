@@ -1,3 +1,9 @@
 # Local Git history backups created before repository consolidation
 *.bundle
+
+# Local dependencies and tooling kept outside version control
+/node_modules/
+/work/
+/.env*
+/web/web/
 node_modules

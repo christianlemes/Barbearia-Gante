@@ -2,9 +2,7 @@ import Link from 'next/link';
 import {
   ArrowRight,
   CalendarDays,
-  Clock3,
   Crown,
-  MapPin,
   Scissors,
   Sparkles,
   TicketPercent,

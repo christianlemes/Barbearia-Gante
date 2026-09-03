@@ -7,10 +7,13 @@
   },
   "scripts": {
     "dev": "vinext dev",
+    "dev:local": "node scripts/dev-local.mjs",
+    "firebase:emulators": "firebase emulators:start --project demo-gante --export-on-exit .firebase-data",
     "build": "vinext build",
     "start": "wrangler dev --config dist/server/wrangler.json",
     "lint": "oxlint",
-    "format": "oxfmt"
+    "format": "oxfmt",
+    "check": "oxlint && vinext build"
   },
   "dependencies": {
     "@base-ui/react": "1.7.0",

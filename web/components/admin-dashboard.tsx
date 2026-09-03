@@ -10,7 +10,6 @@ import {
   Search,
   Scissors,
   Settings2,
-  UserRound,
   UsersRound,
   XCircle,
 } from 'lucide-react';

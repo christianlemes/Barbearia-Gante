@@ -33,23 +33,27 @@ export function AuthCard({ mode }: { mode: 'login' | 'register' }) {
   const [notice, setNotice] = useState('');
   const login = mode === 'login';
 
-  async function submit(event: React.FormEvent<HTMLFormElement>) {
+  async function submit(event: React.SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!firebaseConfigured) return;
     setBusy('email');
     setError('');
     setNotice('');
     const data = new FormData(event.currentTarget);
-    const email = String(data.get('email') ?? '').trim();
-    const password = String(data.get('password') ?? '');
+    const emailValue = data.get('email');
+    const passwordValue = data.get('password');
+    const email = typeof emailValue === 'string' ? emailValue.trim() : '';
+    const password = typeof passwordValue === 'string' ? passwordValue : '';
 
     try {
       if (login) {
         const result = await signInWithEmailAndPassword(getFirebaseAuth(), email, password);
         await ensureUserProfile(result.user);
       } else {
-        const name = String(data.get('name') ?? '').trim();
-        const phone = String(data.get('phone') ?? '').trim();
+        const nameValue = data.get('name');
+        const phoneValue = data.get('phone');
+        const name = typeof nameValue === 'string' ? nameValue.trim() : '';
+        const phone = typeof phoneValue === 'string' ? phoneValue.trim() : '';
         const result = await createUserWithEmailAndPassword(getFirebaseAuth(), email, password);
         await updateProfile(result.user, { displayName: name });
         await ensureUserProfile(result.user, { name, phone });
@@ -109,7 +113,7 @@ export function AuthCard({ mode }: { mode: 'login' | 'register' }) {
 
       {!firebaseConfigured && <p role="alert" className="mt-6 flex gap-3 rounded-2xl bg-[#f4e8d0] px-4 py-3 text-sm text-[#755c27]"><AlertCircle className="mt-0.5 size-4 shrink-0" /> A conexão com o Firebase ainda precisa ser ativada pelo responsável do projeto.</p>}
       {error && <p role="alert" className="mt-6 flex gap-3 rounded-2xl bg-[#f5e5e1] px-4 py-3 text-sm font-semibold text-[#8d3f33]"><AlertCircle className="mt-0.5 size-4 shrink-0" /> {error}</p>}
-      {notice && <p role="status" className="mt-6 flex gap-3 rounded-2xl bg-[#e3eee6] px-4 py-3 text-sm font-semibold text-[#18563b]"><CheckCircle2 className="mt-0.5 size-4 shrink-0" /> {notice}</p>}
+      {notice && <output className="mt-6 flex gap-3 rounded-2xl bg-[#e3eee6] px-4 py-3 text-sm font-semibold text-[#18563b]"><CheckCircle2 className="mt-0.5 size-4 shrink-0" /> {notice}</output>}
 
       <form onSubmit={submit} className="mt-8 space-y-5">
         {!login && (

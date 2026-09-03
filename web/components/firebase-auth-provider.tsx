@@ -22,10 +22,7 @@ export function FirebaseAuthProvider({ children }: { children: React.ReactNode }
   const [loading, setLoading] = useState(firebaseConfigured);
 
   useEffect(() => {
-    if (!firebaseConfigured) {
-      setLoading(false);
-      return;
-    }
+    if (!firebaseConfigured) return;
 
     return onAuthStateChanged(getFirebaseAuth(), (nextUser) => {
       setUser(nextUser);

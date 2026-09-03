@@ -11,6 +11,57 @@ service cloud.firestore {
         && request.auth.token.email == 'jobson.nunes.souza@gmail.com';
     }
 
+    function validNewAppointment(appointmentId) {
+      return request.resource.data.keys().hasAll([
+          'id', 'customer_id', 'customer_name', 'customer_phone', 'customer_email',
+          'service_id', 'service_name', 'professional_id', 'professional_name',
+          'appointment_date', 'appointment_time', 'duration_minutes', 'price_cents',
+          'unit_name', 'unit_address', 'status', 'slot_id', 'cancel_reason',
+          'canceled_at', 'created_at', 'updated_at'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'id', 'customer_id', 'customer_name', 'customer_phone', 'customer_email',
+          'service_id', 'service_name', 'professional_id', 'professional_name',
+          'appointment_date', 'appointment_time', 'duration_minutes', 'price_cents',
+          'unit_name', 'unit_address', 'status', 'slot_id', 'cancel_reason',
+          'canceled_at', 'created_at', 'updated_at'
+        ])
+        && request.resource.data.id == appointmentId
+        && request.resource.data.customer_id == request.auth.uid
+        && request.resource.data.customer_email == request.auth.token.email
+        && request.resource.data.customer_name is string
+        && request.resource.data.customer_name.size() >= 2
+        && request.resource.data.customer_name.size() <= 120
+        && request.resource.data.customer_phone is string
+        && request.resource.data.customer_phone.size() >= 8
+        && request.resource.data.customer_phone.size() <= 30
+        && request.resource.data.appointment_date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.appointment_time.matches('^[0-9]{2}:[0-9]{2}$')
+        && request.resource.data.duration_minutes is int
+        && request.resource.data.duration_minutes >= 10
+        && request.resource.data.duration_minutes <= 180
+        && request.resource.data.price_cents is int
+        && request.resource.data.price_cents >= 0
+        && request.resource.data.price_cents <= 100000
+        && request.resource.data.unit_name == 'Parque Santos Dumont'
+        && request.resource.data.status == 'confirmed'
+        && request.resource.data.cancel_reason == null
+        && request.resource.data.canceled_at == null
+        && getAfter(/databases/$(database)/documents/booking_slots/$(request.resource.data.slot_id)).data.appointment_id == appointmentId;
+    }
+
+    function validNewSlot(slotId) {
+      let appointment = getAfter(/databases/$(database)/documents/appointments/$(request.resource.data.appointment_id)).data;
+      return request.resource.data.keys().hasOnly([
+          'appointment_id', 'appointment_date', 'appointment_time',
+          'professional_id', 'created_at'
+        ])
+        && appointment.slot_id == slotId
+        && appointment.appointment_date == request.resource.data.appointment_date
+        && appointment.appointment_time == request.resource.data.appointment_time
+        && appointment.professional_id == request.resource.data.professional_id;
+    }
+
     match /users/{userId} {
       allow read: if isAdmin() || (signedIn() && request.auth.uid == userId);
       allow create: if signedIn()
@@ -37,11 +88,7 @@ service cloud.firestore {
     match /appointments/{appointmentId} {
       allow read: if isAdmin()
         || (signedIn() && resource.data.customer_id == request.auth.uid);
-      allow create: if signedIn()
-        && request.resource.data.id == appointmentId
-        && request.resource.data.customer_id == request.auth.uid
-        && request.resource.data.customer_email == request.auth.token.email
-        && request.resource.data.status == 'confirmed';
+      allow create: if signedIn() && validNewAppointment(appointmentId);
       allow update: if isAdmin()
         || (signedIn()
           && resource.data.customer_id == request.auth.uid
@@ -56,7 +103,9 @@ service cloud.firestore {
     match /booking_slots/{slotId} {
       allow read: if signedIn();
       allow create: if signedIn()
-        && getAfter(/databases/$(database)/documents/appointments/$(request.resource.data.appointment_id)).data.customer_id == request.auth.uid;
+        && validNewSlot(slotId)
+        && (isAdmin()
+          || getAfter(/databases/$(database)/documents/appointments/$(request.resource.data.appointment_id)).data.customer_id == request.auth.uid);
       allow delete: if isAdmin()
         || (signedIn()
           && get(/databases/$(database)/documents/appointments/$(resource.data.appointment_id)).data.customer_id == request.auth.uid);

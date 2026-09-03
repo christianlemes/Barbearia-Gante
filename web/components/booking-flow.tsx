@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -88,8 +88,8 @@ export function BookingFlow() {
     [availableProfessionals],
   );
 
-  const service = useMemo(() => services.find((item) => item.id === serviceId), [serviceId]);
-  const professional = useMemo(() => professionals.find((item) => item.id === professionalId), [professionalId]);
+  const service = useMemo(() => services.find((item) => item.id === serviceId), [serviceId, services]);
+  const professional = useMemo(() => professionals.find((item) => item.id === professionalId), [professionalId, professionals]);
   const date = useMemo(() => dates.find((item) => item.id === dateId), [dateId]);
 
   const canContinue = step === 0
@@ -133,26 +133,30 @@ export function BookingFlow() {
     return subscribeOccupiedSlots(date.iso, setOccupiedSlots, (nextError) => setSubmitError(friendlyFirebaseError(nextError)));
   }, [date?.iso, user]);
 
-  function timeUnavailable(candidate: string) {
+  const timeUnavailable = useCallback((candidate: string) => {
     if (!date) return false;
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    if (date.iso < today || (date.iso === today && candidate <= currentTime)) return true;
     if (professionalId === 'any') {
       return availableProfessionals.length > 0 && availableProfessionals.every((item) => occupiedSlots.has(`${date.iso}_${item.id}_${candidate.replace(':', '')}`));
     }
     return occupiedSlots.has(`${date.iso}_${professionalId}_${candidate.replace(':', '')}`);
-  }
+  }, [availableProfessionals, date, occupiedSlots, professionalId]);
 
   useEffect(() => {
     if (time && timeUnavailable(time)) setTime('');
-  }, [occupiedSlots, professionalId]);
+  }, [time, timeUnavailable]);
 
-  async function persistBooking(input: {
+  const persistBooking = useCallback(async (input: {
     serviceId: string;
     professionalId: string;
     dateId: string;
     time: string;
     customerName: string;
     customerPhone: string;
-  }) {
+  }) => {
     if (!user) throw new Error('Entre na sua conta para confirmar o horário.');
     const selectedDate = dates.find((item) => item.id === input.dateId);
     const selectedService = services.find((item) => item.id === input.serviceId);
@@ -168,7 +172,7 @@ export function BookingFlow() {
       appointmentDate: selectedDate.iso,
       appointmentTime: input.time,
     });
-  }
+  }, [availableProfessionals, services, user]);
 
   async function submitVisibleBooking() {
     if (!service || !professional || !date || !time || !canContinue) return;
@@ -276,7 +280,7 @@ export function BookingFlow() {
     ).catch(() => undefined);
 
     return () => lifecycle.abort();
-  }, [availableProfessionals, services, user]);
+  }, [persistBooking, professionals, services, user]);
 
   if (authLoading || (configured && !user)) {
     return <main className="grid min-h-screen place-items-center bg-[#f3f0e9]"><p className="text-sm font-semibold text-[#60655f]">Preparando seu agendamento...</p></main>;

@@ -50,7 +50,7 @@ export function ProfileForm() {
     setProfile((current) => ({ ...current, [id]: value }));
   }
 
-  async function submit(event: React.FormEvent<HTMLFormElement>) {
+  async function submit(event: React.SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!user) return;
     setSaving(true);
@@ -86,7 +86,7 @@ export function ProfileForm() {
   return (
     <form onSubmit={submit} className="mt-8 space-y-5">
       {error && <p role="alert" className="flex gap-3 rounded-2xl bg-[#f5e5e1] px-5 py-4 text-sm font-semibold text-[#8d3f33]"><AlertCircle className="size-4 shrink-0" />{error}</p>}
-      {notice && <p role="status" className="rounded-2xl bg-[#e3eee6] px-5 py-4 text-sm font-semibold text-[#18563b]">{notice}</p>}
+      {notice && <output className="block rounded-2xl bg-[#e3eee6] px-5 py-4 text-sm font-semibold text-[#18563b]">{notice}</output>}
 
       <section className="rounded-[26px] border border-[#d9d2c6] bg-[#fbf9f4] p-5 sm:p-7">
         <div className="flex flex-col gap-5 border-b border-[#e3ddd2] pb-6 sm:flex-row sm:items-center">

@@ -45,8 +45,12 @@ export function friendlyFirebaseError(error: unknown) {
   const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : '';
   const messages: Record<string, string> = {
     'auth/invalid-credential': 'E-mail ou senha incorretos.',
+    'auth/user-not-found': 'E-mail ou senha incorretos.',
+    'auth/wrong-password': 'E-mail ou senha incorretos.',
+    'auth/invalid-email': 'Digite um e-mail válido.',
     'auth/email-already-in-use': 'Este e-mail já possui uma conta.',
     'auth/weak-password': 'Use uma senha mais forte, com pelo menos 6 caracteres.',
+    'auth/too-many-requests': 'Muitas tentativas seguidas. Aguarde alguns minutos e tente novamente.',
     'auth/popup-closed-by-user': 'O login com Google foi fechado antes de terminar.',
     'auth/popup-blocked': 'O navegador bloqueou a janela do Google. Libere pop-ups e tente novamente.',
     'auth/network-request-failed': 'Falha de conexão. Verifique sua internet e tente novamente.',
