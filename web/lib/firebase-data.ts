@@ -54,6 +54,8 @@ export function friendlyFirebaseError(error: unknown) {
     'auth/popup-closed-by-user': 'O login com Google foi fechado antes de terminar.',
     'auth/popup-blocked': 'O navegador bloqueou a janela do Google. Libere pop-ups e tente novamente.',
     'auth/network-request-failed': 'Falha de conexão. Verifique sua internet e tente novamente.',
+    'auth/operation-not-allowed': 'Este método de login ainda precisa ser habilitado no Firebase.',
+    'auth/unauthorized-domain': 'Este endereço ainda precisa ser autorizado no Firebase.',
     'permission-denied': 'Você não tem permissão para realizar esta ação.',
     'firestore/permission-denied': 'Você não tem permissão para realizar esta ação.',
     'unavailable': 'O serviço está temporariamente indisponível. Tente novamente.',
@@ -97,6 +99,19 @@ export async function getUserProfile(uid: string) {
 
 export async function saveUserProfile(uid: string, values: Partial<CustomerProfile>) {
   await setDoc(doc(getFirebaseDb(), 'users', uid), { ...values, uid, updated_at: new Date().toISOString() }, { merge: true });
+}
+
+export function subscribeAllCustomers(callback: (items: CustomerProfile[]) => void, onError?: (error: Error) => void): Unsubscribe {
+  return onSnapshot(
+    collection(getFirebaseDb(), 'users'),
+    (snapshot) => {
+      const items = snapshot.docs
+        .map((item) => ({ uid: item.id, ...item.data() }) as CustomerProfile)
+        .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+      callback(items);
+    },
+    (error) => onError?.(error),
+  );
 }
 
 export function subscribeServices(callback: (items: ServiceRecord[]) => void, includeInactive = false): Unsubscribe {

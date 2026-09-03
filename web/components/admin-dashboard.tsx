@@ -7,9 +7,13 @@ import {
   CheckCircle2,
   Clock3,
   Loader2,
+  Mail,
+  MapPin,
+  Phone,
   Search,
   Scissors,
   Settings2,
+  UserRound,
   UsersRound,
   XCircle,
 } from 'lucide-react';
@@ -18,8 +22,8 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { useFirebaseAuth } from '@/components/firebase-auth-provider';
 import { firebaseAdminEmail } from '@/lib/firebase-client';
-import { changeAppointmentStatus as saveAppointmentStatus, friendlyFirebaseError, seedCatalog, subscribeAllAppointments, subscribeProfessionals, subscribeServices, updateCatalogActive } from '@/lib/firebase-data';
-import type { AppointmentRecord, ProfessionalRecord, ServiceRecord } from '@/lib/gante-types';
+import { changeAppointmentStatus as saveAppointmentStatus, friendlyFirebaseError, seedCatalog, subscribeAllAppointments, subscribeAllCustomers, subscribeProfessionals, subscribeServices, updateCatalogActive } from '@/lib/firebase-data';
+import type { AppointmentRecord, CustomerProfile, ProfessionalRecord, ServiceRecord } from '@/lib/gante-types';
 
 const statusLabel: Record<string, string> = {
   confirmed: 'Confirmado',
@@ -35,8 +39,9 @@ function money(cents: number) {
 export function AdminDashboard() {
   const router = useRouter();
   const { user } = useFirebaseAuth();
-  const [tab, setTab] = useState<'agenda' | 'services' | 'professionals'>('agenda');
+  const [tab, setTab] = useState<'agenda' | 'customers' | 'services' | 'professionals'>('agenda');
   const [appointments, setAppointments] = useState<AppointmentRecord[]>([]);
+  const [customers, setCustomers] = useState<CustomerProfile[]>([]);
   const [services, setServices] = useState<ServiceRecord[]>([]);
   const [professionals, setProfessionals] = useState<ProfessionalRecord[]>([]);
   const [search, setSearch] = useState('');
@@ -53,10 +58,12 @@ export function AdminDashboard() {
     }
     void seedCatalog().catch((nextError) => setError(friendlyFirebaseError(nextError)));
     const stopAppointments = subscribeAllAppointments(setAppointments, (nextError) => setError(friendlyFirebaseError(nextError)));
+    const stopCustomers = subscribeAllCustomers(setCustomers, (nextError) => setError(friendlyFirebaseError(nextError)));
     const stopServices = subscribeServices(setServices, true);
     const stopProfessionals = subscribeProfessionals(setProfessionals, true);
     return () => {
       stopAppointments();
+      stopCustomers();
       stopServices();
       stopProfessionals();
     };
@@ -67,6 +74,10 @@ export function AdminDashboard() {
     const query = search.trim().toLowerCase();
     return appointments.filter((item) => !query || [item.customer_name, item.customer_phone, item.service_name, item.professional_name].some((value) => value.toLowerCase().includes(query)));
   }, [appointments, search]);
+  const filteredCustomers = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return customers.filter((item) => !query || [item.name, item.email, item.phone, item.city].some((value) => value?.toLowerCase().includes(query)));
+  }, [customers, search]);
 
   const stats = {
     today: appointments.filter((item) => item.appointment_date === today && item.status === 'confirmed').length,
@@ -117,17 +128,20 @@ export function AdminDashboard() {
       </section>
 
       <div className="mt-7 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="inline-flex self-start rounded-full border border-[#d9d2c6] bg-[#ebe7de] p-1">
+        <div className="max-w-full self-start overflow-x-auto rounded-full border border-[#d9d2c6] bg-[#ebe7de] p-1">
+          <div className="inline-flex min-w-max">
           {[
             ['agenda', CalendarCheck2, 'Agenda'],
+            ['customers', UserRound, `Clientes (${customers.length})`],
             ['services', Scissors, 'Serviços'],
             ['professionals', UsersRound, 'Profissionais'],
           ].map(([value, Icon, label]) => {
             const TabIcon = Icon as typeof Scissors;
             return <button key={value as string} onClick={() => setTab(value as typeof tab)} className={`inline-flex h-10 items-center gap-2 rounded-full px-4 text-xs font-bold ${tab === value ? 'bg-white text-[#174c35] shadow-sm' : 'text-[#70746e]'}`}><TabIcon className="size-3.5" />{label as string}</button>;
           })}
+          </div>
         </div>
-        {tab === 'agenda' && <div className="relative w-full sm:max-w-xs"><Search className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-[#858983]" /><Input value={search} onChange={(event) => setSearch(event.target.value)} className="h-11 rounded-full bg-white pl-11" placeholder="Buscar cliente ou serviço" /></div>}
+        {(tab === 'agenda' || tab === 'customers') && <div className="relative w-full sm:max-w-xs"><Search className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-[#858983]" /><Input value={search} onChange={(event) => setSearch(event.target.value)} className="h-11 rounded-full bg-white pl-11" placeholder={tab === 'customers' ? 'Buscar cliente' : 'Buscar cliente ou serviço'} /></div>}
       </div>
 
       {error && <p role="alert" className="mt-5 rounded-2xl bg-[#f5e5e1] px-5 py-4 text-sm font-semibold text-[#8d3f33]">{error}</p>}
@@ -147,6 +161,32 @@ export function AdminDashboard() {
               </div>
             </article>
           )) : <div className="p-12 text-center"><CalendarCheck2 className="mx-auto size-8 text-[#a7aaa5]" /><h3 className="mt-4 font-serif text-2xl">Nenhum agendamento encontrado</h3><p className="mt-2 text-sm text-[#777b75]">Novas reservas aparecerão aqui automaticamente.</p></div>}
+        </section>
+      )}
+
+      {tab === 'customers' && (
+        <section className="mt-5 grid gap-4 md:grid-cols-2">
+          {filteredCustomers.length ? filteredCustomers.map((item) => {
+            const location = [item.city, item.state].filter(Boolean).join(' · ');
+            return (
+              <article key={item.uid} className="rounded-[22px] border border-[#d9d2c6] bg-[#fbf9f4] p-5">
+                <div className="flex items-start gap-4">
+                  <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#e2ece5] font-serif text-lg font-bold text-[#18563b]">
+                    {(item.name || item.email || 'C').trim().charAt(0).toUpperCase()}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="truncate font-bold text-[#173b2b]">{item.name || 'Cliente sem nome'}</h3>
+                    <p className="mt-1 text-xs text-[#858983]">Cliente desde {new Intl.DateTimeFormat('pt-BR').format(new Date(item.created_at || Date.now()))}</p>
+                  </div>
+                </div>
+                <div className="mt-5 grid gap-2.5 text-sm text-[#686d67]">
+                  <a href={`mailto:${item.email}`} className="flex min-w-0 items-center gap-3 hover:text-[#18563b]"><Mail className="size-4 shrink-0 text-[#92743b]" /><span className="truncate">{item.email}</span></a>
+                  {item.phone && <a href={`tel:${item.phone.replace(/\D/g, '')}`} className="flex items-center gap-3 hover:text-[#18563b]"><Phone className="size-4 shrink-0 text-[#92743b]" />{item.phone}</a>}
+                  {location && <p className="flex items-center gap-3"><MapPin className="size-4 shrink-0 text-[#92743b]" />{location}</p>}
+                </div>
+              </article>
+            );
+          }) : <div className="rounded-[24px] border border-[#d9d2c6] bg-[#fbf9f4] p-12 text-center md:col-span-2"><UserRound className="mx-auto size-8 text-[#a7aaa5]" /><h3 className="mt-4 font-serif text-2xl">Nenhum cliente encontrado</h3><p className="mt-2 text-sm text-[#777b75]">Novos cadastros aparecerão aqui automaticamente.</p></div>}
         </section>
       )}
 
